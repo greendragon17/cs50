@@ -8,13 +8,6 @@
  *
  * Resizes an uncompressed 24-bit BMP by a factor of n
  */
-
-/*
-    Progress notes 11-7-2016
-    
-    Works, but cannot resize anything factor of 7 or below, unknown reason
-    
-*/
        
 #include <stdio.h>
 #include <stdlib.h>
