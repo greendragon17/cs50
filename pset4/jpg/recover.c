@@ -16,8 +16,6 @@
 #include<math.h>
 #include<stdint.h>
 
-typedef uint8_t BYTE;
-
 int main(int argc, char* argv[])
 {
     // ensure proper usage
@@ -37,41 +35,69 @@ int main(int argc, char* argv[])
         return 2;
     }
     
+    // make pointer for outfile
+    FILE* outfile;
+    
     // buffer to read memory card and check signature
-    BYTE buffer[512];
-    
-    // read into buffer from memory card 1-byte 512x times
-    while(fread(&buffer, 512, 1, card) == 512){
-            
-            // check for the start of a JPG
+    uint8_t buffer[512] = {0};
+
+    // termination switch
+    int done = 0;
+
+    // REPEAT UNTIL END OF CARD
+    do{
+        // read data into buffer from memory card 1-byte 512x times until EOF
+        if(fread(buffer, 1, 512, card) == 512){
+            // START OF A JPG?
             if(buffer[0] == 0xff && buffer[1] == 0xd8 && buffer[2] == 0xff && (buffer[3] & 0xf0) == 0xe1){
-                
-                //keep going until EOF is reached
-                
-                // open a new JPG file
-                sprintf(filename, "%03i.jpg", counter);
+        
+                // IF new file is needed, ELSE file is already open
+                if(outfile == NULL){
+                    // make the outfile
+                    sprintf(filename, "%03i.jpg", counter);
             
-                FILE* pic = fopen(filename, "w");
-                if(pic == NULL){
-                    printf("Could not create new JPG file.  Exiting...\n");
-                    fclose(card);
-                    return 3;
+                    outfile = fopen(filename, "w");
+                    if(outfile == NULL){
+                        printf("Could not create new JPG file.  Exiting...\n");
+                        fclose(card);
+                        free(filename);
+                        return 3;
+                    }
                 }
-            
-            // write to the outfile
-            fwrite(pic, 512, 1, buffer);
-            
-            // close the outfile
-            fclose(pic);
+                else{
+                    // close the open file
+                    fclose(outfile);
+                    counter++;
+                    
+                    // make a new file to continue
+                    sprintf(filename, "%003i.jpg", counter);
+                    outfile = fopen(filename, "w");
+                    if(outfile == NULL){
+                        printf("Could not create new JPG file.  Exiting...\n");
+                        fclose(card);
+                        free(filename);
+                        return 4;
+                    }
+                }
             }
+        
+            // ALREADY FOUND A JPG?
+            if(outfile != NULL){
+                //  write block to outfile
+                fwrite(buffer, 1, 512, outfile);
+            }
+        }
+        else{
+            // EOF has been detected - write last bits
+            fwrite(buffer, 1, 512, outfile);
+            
+            // CLOSE ANY REMAINING FILES
+            fclose(card);
+            
+            free(filename);
+            
+            return 0;
+        }
     }
-    
-    // detect end of file
-    
-    // close any remaining files
-    fclose(card);
-    
-    free(filename);
-    
-    return 0;
+    while(done == 0);
 }
