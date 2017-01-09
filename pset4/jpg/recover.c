@@ -16,8 +16,7 @@
 #include<math.h>
 #include<stdint.h>
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
     // ensure proper usage
     if(argc != 1){
         printf("Usage: ./recover\n");
@@ -32,6 +31,7 @@ int main(int argc, char* argv[])
     FILE* card = fopen("card.raw", "r");
     if(card == NULL){
         printf("Could not open card.raw\n");
+        free(filename);
         return 2;
     }
     
@@ -43,16 +43,19 @@ int main(int argc, char* argv[])
 
     // termination switch
     int done = 0;
+    
+    // check - if file open == 1
+    int open = 0;
 
     // REPEAT UNTIL END OF CARD
     do{
         // read data into buffer from memory card 1-byte 512x times until EOF
-        if(fread(buffer, 1, 512, card) == 512){
+        while(fread(&buffer, 1, 512, card) == 512){
             // START OF A JPG?
             if(buffer[0] == 0xff && buffer[1] == 0xd8 && buffer[2] == 0xff && (buffer[3] & 0xf0) == 0xe1){
         
                 // IF new file is needed, ELSE file is already open
-                if(outfile == NULL){
+                if(open == 0){
                     // make the outfile
                     sprintf(filename, "%03i.jpg", counter);
             
@@ -63,6 +66,8 @@ int main(int argc, char* argv[])
                         free(filename);
                         return 3;
                     }
+                    
+                    open++;
                 }
                 else{
                     // close the open file
@@ -82,14 +87,15 @@ int main(int argc, char* argv[])
             }
         
             // ALREADY FOUND A JPG?
-            if(outfile != NULL){
+            if(open == 1){
                 //  write block to outfile
-                fwrite(buffer, 1, 512, outfile);
+                fwrite(&buffer, 1, 512, outfile);
             }
         }
-        else{
+        // ending sequence for already open file when EOF reached since write less than 512 bits
+        if(open == 1){
             // EOF has been detected - write last bits
-            fwrite(buffer, 1, 512, outfile);
+            fwrite(&buffer, 1, 512, outfile);
             
             // CLOSE ANY REMAINING FILES
             fclose(card);
